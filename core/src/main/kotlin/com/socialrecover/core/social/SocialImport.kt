@@ -181,18 +181,27 @@ object SocialSearch {
      * @param matchAll true: deben aparecer todas las palabras (buscador); false: basta una, ordenado por coincidencias.
      * Una palabra coincide si alguna palabra del elemento empieza por ella ("playa" encuentra "playas").
      */
-    fun search(items: Collection<SocialItem>, q: SocialQuery, limit: Int = 500, matchAll: Boolean = true): List<SocialHit> {
+    /** Primero lo que se puede recuperar (fotos y vídeos), después lo tuyo, al final la actividad. */
+    private fun base(i: SocialItem): Int = when {
+        i.mediaPath != null -> 4
+        i.type in setOf(SocialItemType.POST, SocialItemType.COMMENT, SocialItemType.REPLY) -> 3
+        i.type in setOf(SocialItemType.LIKE, SocialItemType.SAVED) -> 2
+        i.type == SocialItemType.WATCHED || i.type == SocialItemType.ACTIVITY -> 0
+        else -> 1
+    }
+
+    fun search(items: Collection<SocialItem>, q: SocialQuery, limit: Int = 2000, matchAll: Boolean = true): List<SocialHit> {
         val words = tokens(q.text).filter { it.length >= 2 }
         return items.asSequence()
             .filter { q.networks.isEmpty() || it.network in q.networks }
             .filter { q.types.isEmpty() || it.type in q.types }
             .filter { (q.from == null || it.timestamp >= q.from) && (q.to == null || it.timestamp in 1..q.to) }
             .mapNotNull { item ->
-                if (words.isEmpty()) return@mapNotNull SocialHit(item, 1)
+                if (words.isEmpty()) return@mapNotNull SocialHit(item, base(item))
                 val hay = tokens(item.text + " " + (item.url ?: "") + " " + (item.mediaPath?.substringAfterLast('/') ?: ""))
                 val hits = words.count { w -> hay.any { it.startsWith(w) } }
                 if (hits == 0 || matchAll && hits < words.size) null
-                else SocialHit(item, hits * 10 + (if (TimeMachine.norm(item.text).contains(words.joinToString(" "))) 5 else 0))
+                else SocialHit(item, hits * 10 + base(item) + (if (TimeMachine.norm(item.text).contains(words.joinToString(" "))) 5 else 0))
             }
             .sortedWith(compareByDescending<SocialHit> { it.score }.thenByDescending { it.item.timestamp })
             .take(limit).toList()

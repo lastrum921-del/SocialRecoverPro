@@ -175,6 +175,24 @@ class SocialImportTest {
     }
 
     @Test
+    fun viewedPostsLoginsAndAdsAreNotShownAsYourMemories() {
+        val v = vault()
+        val r = import(v, zip(
+            "your_instagram_activity/content/posts_1.json" to """[{"media":[{"uri":"media/posts/1/mia.jpg","creation_timestamp":${ts(2024, 5, 5)},"title":"Mi foto"}]}]""",
+            "media/posts/1/mia.jpg" to jpg,
+            "ads_information/ads_and_topics/posts_viewed.json" to """{"impressions_history_posts_seen":[{"string_map_data":{"Author":{"value":"otra_cuenta"},"Time":{"timestamp":${ts(2026, 11, 8)}}}}]}""",
+            "your_instagram_activity/threads/threads_viewed.json" to """{"text_post_app_threads_viewed":[{"string_list_data":[{"href":"https://www.instagram.com/p/X/","value":"ajena","timestamp":${ts(2026, 11, 8)}}]}]}""",
+            "security_and_login_information/login_and_profile_creation/login_activity.json" to """{"account_history_login_history":[{"title":"2026-11-08T18:17:23+00:00","string_map_data":{"Cookie Name":{"value":"*****IEs"},"Time":{"timestamp":${ts(2026, 11, 8)}}}}]}""",
+        ), "ig.zip", SocialNetwork.INSTAGRAM)
+        assertEquals(listOf("Mi foto"), r.items.filter { it.type != SocialItemType.WATCHED }.map { it.text })
+        assertTrue(r.items.none { it.text.contains("IEs") }, "Inicios de sesión fuera del buscador")
+        assertTrue(r.items.none { it.type == SocialItemType.POST && it.text.contains("ajena") }, "Lo visto no es una publicación tuya")
+        val hits = SocialSearch.search(Library(listOf(v)).allSocial().map { it.second }, SocialQuery())
+        assertEquals("Mi foto", hits.first().item.text, "Lo recuperable aparece primero")
+        assertEquals(5, r.snapshot.files.size, "Todos los archivos siguen guardados en la copia")
+    }
+
+    @Test
     fun brokenOrUnknownFormatsStillSaveEverything() {
         val v = vault()
         val r = import(v, zip(

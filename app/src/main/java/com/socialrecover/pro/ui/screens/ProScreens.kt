@@ -253,6 +253,8 @@ fun SocialHubScreen(vm: AppViewModel, modifier: Modifier) {
                     val on = n in pro.socialQuery.networks
                     FilterChip(selected = on, onClick = { pro.socialQuery = pro.socialQuery.copy(networks = if (on) pro.socialQuery.networks - n else pro.socialQuery.networks + n); pro.searchSocial() }, label = { Text(n.label) })
                 }
+                FilterChip(selected = pro.onlyMedia, onClick = { pro.onlyMedia = !pro.onlyMedia; pro.searchSocial() }, label = { Text("Solo recuperables") })
+                FilterChip(selected = pro.showActivity, onClick = { pro.showActivity = !pro.showActivity; pro.searchSocial() }, label = { Text("Incluir lo que solo vi") })
                 listOf(SocialItemType.PHOTO, SocialItemType.VIDEO, SocialItemType.POST, SocialItemType.COMMENT, SocialItemType.LIKE, SocialItemType.SAVED).forEach { t ->
                     val on = t in pro.socialQuery.types
                     FilterChip(selected = on, onClick = { pro.socialQuery = pro.socialQuery.copy(types = if (on) pro.socialQuery.types - t else pro.socialQuery.types + t); pro.searchSocial() }, label = { Text(t.label) })
@@ -276,13 +278,16 @@ fun SocialHubScreen(vm: AppViewModel, modifier: Modifier) {
         items(pro.socialResults.indices.toList()) { i ->
             val h = pro.socialResults[i]
             val media = h.item.mediaPath != null
-            Column(Modifier.fillMaxWidth().clickable(enabled = media) { picked = if (i in picked) picked - i else picked + i }) {
+            Column(Modifier.fillMaxWidth().clickable {
+                if (media) picked = if (i in picked) picked - i else picked + i
+                else h.item.url?.let { u -> runCatching { uriHandler.openUri(u) } }
+            }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (media) Checkbox(checked = i in picked, onCheckedChange = { on -> picked = if (on) picked + i else picked - i })
                     Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                         Text(h.item.text.ifBlank { h.item.type.label }, maxLines = 3)
                         Text(listOfNotNull(h.item.network.label, h.item.type.label, if (h.item.timestamp > 0) Format.date(h.item.timestamp) else null,
-                            if (media) "archivo guardado" else "solo registro").joinToString(" · "),
+                            if (media) "✓ archivo recuperable" else "solo registro (toca para abrir el enlace)").joinToString(" · "),
                             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         h.item.url?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, maxLines = 1) }
                     }
@@ -292,6 +297,11 @@ fun SocialHubScreen(vm: AppViewModel, modifier: Modifier) {
         }
         if (picked.isNotEmpty()) item {
             BigButton("Recuperar fotos y vídeos (${picked.size})", Icons.Filled.Restore, Modifier.padding(vertical = 12.dp)) { dest.launch(null) }
+        }
+        if (pro.socialResults.any { it.item.mediaPath != null }) item {
+            TextButton(onClick = { picked = pro.socialResults.indices.filter { pro.socialResults[it].item.mediaPath != null }.toSet() }) {
+                Text("Marcar todas las fotos y vídeos de la lista")
+            }
         }
     }
 }

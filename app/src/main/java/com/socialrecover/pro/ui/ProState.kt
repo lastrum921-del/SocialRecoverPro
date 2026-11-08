@@ -237,10 +237,18 @@ class ProState(private val app: Application, private val ops: Ops) {
         }
     }
 
+    /** Solo lo que tiene archivo recuperable (fotos y vídeos). */
+    var onlyMedia by mutableStateOf(false)
+    /** Mostrar también lo que solo has visto y otra actividad (oculto por defecto). */
+    var showActivity by mutableStateOf(false)
+
     fun searchSocial() {
         val lib = library ?: return
         socialResults.clear()
         socialResults += SocialSearch.search(lib.allSocial().map { it.second }, socialQuery)
+            .filter { h -> !onlyMedia || h.item.mediaPath != null }
+            .filter { h -> showActivity || socialQuery.types.isNotEmpty() ||
+                (h.item.type != com.socialrecover.core.social.SocialItemType.WATCHED && h.item.type != com.socialrecover.core.social.SocialItemType.ACTIVITY) }
     }
 
     fun exportResults(dest: Uri, html: Boolean) {

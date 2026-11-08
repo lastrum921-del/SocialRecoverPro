@@ -41,7 +41,8 @@ class Library(val vaults: List<Vault>, private val zone: ZoneId = ZoneId.systemD
     fun allSocial(): List<Pair<LoadedSnapshot, SocialItem>> {
         // La misma publicación puede estar en varias importaciones: se muestra una vez (la más reciente).
         val seen = HashMap<String, Pair<LoadedSnapshot, SocialItem>>()
-        for (ls in snapshots) for (it in ls.snapshot.social) {
+        for (ls in snapshots) for (raw in ls.snapshot.social) {
+            val it = com.socialrecover.core.social.SocialCleanup.normalize(raw) ?: continue
             seen["${it.network}|${it.type}|${it.timestamp}|${it.text}|${it.url}"] = ls to it
         }
         return seen.values.toList()

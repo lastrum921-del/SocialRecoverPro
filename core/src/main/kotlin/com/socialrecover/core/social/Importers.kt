@@ -138,6 +138,35 @@ private fun Any?.str(): String? = (this as? String)?.let(::fixMojibake)
 
 private fun parseJsonSafe(text: String): Any? = try { Json.parse(text) } catch (e: Exception) { runCatching { Json.parseJsAssignment(text) }.getOrNull() }
 
+// ----------------------------------------------------------------------------- Limpieza del índice
+
+/**
+ * Las exportaciones de Meta mezclan TUS recuerdos con datos que no lo son: publicaciones de otras cuentas que solo
+ * has visto, anuncios, temas sugeridos, inicios de sesión, dispositivos… Esos archivos se guardan igualmente en la
+ * copia, pero no se muestran como recuerdos. Se aplica también a importaciones antiguas (por el archivo de origen).
+ */
+object SocialCleanup {
+    private val hidden = listOf(
+        "security_and_login", "login_activity", "logout_activity", "logged_information", "password_change", "account_activity",
+        "ads_information", "ads_and_topics", "your_topics", "ads_interests", "advertisers", "information_about_you",
+        "device_information", "devices", "apps_and_websites", "preferences/", "your_preferences", "followers_and_following",
+        "connections/", "personal_information", "contacts", "profile_information", "logged", "cookies", "ip_address",
+    )
+    private val viewed = listOf("viewed", "_seen", "seen_", "impressions", "recently_", "recent_search", "search", "suggested", "recommended")
+    private val meta = setOf(SocialNetwork.INSTAGRAM, SocialNetwork.FACEBOOK, SocialNetwork.THREADS)
+
+    /** null = no es un recuerdo del usuario (se oculta del buscador). */
+    fun normalize(i: SocialItem): SocialItem? {
+        if (i.network !in meta || i.mediaPath != null && !i.sourceFile.lowercase().let { p -> viewed.any { p.contains(it) } }) return i
+        val p = i.sourceFile.lowercase()
+        if (hidden.any { p.contains(it) }) return null
+        if (viewed.any { p.substringAfterLast('/').contains(it) }) {
+            return if (i.mediaPath != null) null else i.copy(type = SocialItemType.WATCHED)
+        }
+        return i
+    }
+}
+
 // ----------------------------------------------------------------------------- Meta: Instagram, Facebook, Threads
 
 /**
@@ -179,7 +208,7 @@ class MetaImporter(override val network: SocialNetwork) : SocialImporter {
                 ?: typeFromPath(lp.substringAfterLast("activity/"))
             walk(root, null, path, net, baseType, files, out)
         }
-        return out.toList()
+        return out.mapNotNull { SocialCleanup.normalize(it) }
     }
 
     private fun walk(v: Any?, parentTitle: String?, src: String, net: SocialNetwork, baseType: SocialItemType, files: ExportFiles, out: MutableSet<SocialItem>) {
