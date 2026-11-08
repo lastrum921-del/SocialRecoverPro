@@ -95,6 +95,14 @@ fun HomeScreen(vm: AppViewModel, modifier: Modifier) {
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Lo más importante, lo más grande: recuperar algo perdido.
+            // Un solo botón para protegerlo todo (y cada día automáticamente si está activado).
+            BigButton("Proteger todo ahora", Icons.Filled.Shield) {
+                vm.pro.protectAll(onNoFolders = {
+                    vm.message = com.socialrecover.pro.ui.UiMessage("Elige qué proteger",
+                        "Añade una vez tus carpetas (cámara, fotos, documentos, WhatsApp…). Después este botón, y la copia automática diaria, las protegerán todas.")
+                    vm.goPro(Screen.STATUS)
+                })
+            }
             BigButton("Recuperar archivos (guiado)", Icons.Filled.Restore) { vm.pro.resetGuided(); vm.goPro(Screen.GUIDED) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TileCard("Crear copia", "Elige qué proteger", Icons.Filled.Backup, Modifier.weight(1f)) { vm.goPro(Screen.CREATE) }

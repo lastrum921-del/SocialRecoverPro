@@ -125,6 +125,22 @@ class VaultService(private val context: Context) {
         get() = sp.getString("sync_error", null); private set(v) { sp.edit().putString("sync_error", v).apply() }
     var lastSyncAt: Long
         get() = sp.getLong("sync_at", 0); private set(v) { sp.edit().putLong("sync_at", v).apply() }
+    /** Cuándo pidió el usuario su exportación oficial a cada red y cuándo se importó la última. */
+    fun networkRecord(n: SocialNetwork): Pair<Long, Long> {
+        val o = sp.getString("net_${n.name}", null)?.let { JSONObject(it) } ?: return 0L to 0L
+        return o.optLong("req", 0) to o.optLong("imp", 0)
+    }
+
+    fun markRequested(n: SocialNetwork) {
+        val (_, imp) = networkRecord(n)
+        sp.edit().putString("net_${n.name}", JSONObject().put("req", System.currentTimeMillis()).put("imp", imp).toString()).apply()
+    }
+
+    private fun markImported(n: SocialNetwork) {
+        val (req, _) = networkRecord(n)
+        sp.edit().putString("net_${n.name}", JSONObject().put("req", req).put("imp", System.currentTimeMillis()).toString()).apply()
+    }
+
     var autoBackup: Boolean
         get() = sp.getBoolean("auto_backup", false); set(v) { sp.edit().putBoolean("auto_backup", v).apply() }
 
@@ -278,7 +294,10 @@ class VaultService(private val context: Context) {
             cloud.takeIf { dest != Destination.LOCAL || local == null },
         )
         for (v in targets) {
-            try { out += SocialImport.import(ps, v, device, deviceKind, expected, onProgress = onProgress, isCancelled = isCancelled) }
+            try {
+                val r = SocialImport.import(ps, v, device, deviceKind, expected, onProgress = onProgress, isCancelled = isCancelled)
+                out += r; markImported(r.network)
+            }
             catch (e: SrpException.Offline) { lastSyncError = e.userMessage; if (v === local) throw e }
         }
         library = null

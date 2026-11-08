@@ -87,6 +87,7 @@ class ProState(private val app: Application, private val ops: Ops) {
             } finally { Arrays.fill(pw, '\u0000') }
         }) { created ->
             unlocked = svc.unlocked; showUnlock = false
+            if (pendingShared.isNotEmpty()) { val u = pendingShared.toList(); pendingShared.clear(); importExports(u, null) }
             if (created) ops.msg("Bóveda creada", "Tu bóveda cifrada está lista. Recuerda la contraseña: nadie puede recuperarla por ti.")
             refreshLibrary()
             if (remember) ProtectionWorker.schedule(app, svc.monitor.checkEveryHours.toLong())
@@ -113,6 +114,48 @@ class ProState(private val app: Application, private val ops: Ops) {
             r.cloudError?.let { parts += "Nube: ${it.userMessage} La copia local es válida." }
             ops.msg(if (r.localError == null) "Copia creada" else "Copia con problemas", parts.joinToString("\n"), r.localError != null)
             refreshLibrary(); after()
+        }
+    }
+
+    // ---------------------------------------------------------------- Proteger todo con un botón
+
+    /** Archivos de exportación recibidos con «Abrir con» / «Compartir» mientras la bóveda estaba cerrada. */
+    val pendingShared = mutableStateListOf<Uri>()
+
+    /** Cambia cada vez que se pide o importa una exportación (para refrescar la lista de redes). */
+    var netTick by mutableStateOf(0); private set
+
+    fun requestExport(n: SocialNetwork) { svc.markRequested(n); netTick++ }
+
+    fun receiveShared(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        if (svc.unlocked) importExports(uris, null) else { pendingShared.clear(); pendingShared += uris; showUnlock = true }
+    }
+
+    /** Redes cuya última exportación importada tiene más de [days] días (o nunca se importó). */
+    fun staleNetworks(days: Int = 60): List<SocialNetwork> {
+        val limit = System.currentTimeMillis() - days * 86_400_000L
+        return SocialNetwork.entries.filter { it != SocialNetwork.OTHER }.filter { svc.networkRecord(it).second in 1 until limit }
+    }
+
+    /**
+     * «Proteger todo ahora»: copia incremental de TODAS las carpetas autorizadas (local y/o nube según la
+     * Nube inteligente) y recordatorio de las redes cuya exportación está desactualizada.
+     */
+    fun protectAll(onNoFolders: () -> Unit) {
+        if (svc.watched.isEmpty()) { onNoFolders(); return }
+        if (!svc.unlocked) { showUnlock = true; return }
+        ops.op("Protegiendo todo…", true, { p, c -> svc.backupWatched(p, c) }) { res ->
+            val bad = res.filter { it.second != null }
+            val stale = staleNetworks()
+            val text = buildString {
+                append(if (bad.isEmpty()) "Se han copiado tus ${res.size} carpeta(s). Solo se ha guardado lo nuevo o modificado." else "Copiadas ${res.size - bad.size} de ${res.size} carpetas.")
+                bad.forEach { append("\n• ${it.first.label}: ${(it.second as? SrpException)?.userMessage ?: it.second?.message}") }
+                if (stale.isNotEmpty()) append("\n\nTus copias de ${stale.joinToString { it.label }} tienen más de 2 meses. Pide una nueva en «Mis redes sociales».")
+                if (svc.autoBackup) append("\n\nLas copias automáticas diarias están activadas.")
+            }
+            ops.msg(if (bad.isEmpty()) "Todo protegido" else "Protección incompleta", text, bad.isNotEmpty())
+            refreshLibrary()
         }
     }
 
@@ -171,6 +214,7 @@ class ProState(private val app: Application, private val ops: Ops) {
         if (uris.isEmpty()) return
         val parts = uris.map { u -> (runCatching { UriSource.from(app, u).displayName }.getOrDefault("exportación.zip")) to u }
         ops.op("Importando y cifrando la exportación…", true, { p, c -> svc.importSocial(parts, expected, p, c) }) { results ->
+            netTick++
             val r = results.firstOrNull() ?: return@op
             val counts = r.countsByType.entries.sortedByDescending { it.value }.joinToString("\n") { "• ${it.key.label}: ${it.value}" }
             ops.msg("Importación de ${r.network.label} completada",
@@ -224,7 +268,11 @@ class ProState(private val app: Application, private val ops: Ops) {
         ops.op(if (scan) "Revisando tus carpetas…" else "Calculando…", false, { _, _ -> svc.protection(scan) }) { protection = it }
     }
 
-    fun addWatched(uri: Uri, cat: Category) { runCatching { svc.addWatched(uri, cat) }; refreshProtection(false) }
+    fun addWatched(uri: Uri, cat: Category) {
+        runCatching { svc.addWatched(uri, cat) }
+        if (svc.autoBackup) ProtectionWorker.schedule(app, svc.monitor.checkEveryHours.toLong())
+        refreshProtection(false)
+    }
     fun removeWatched(id: String) { svc.removeWatched(id); refreshProtection(false) }
     fun saveMonitor(m: MonitorSettings) { svc.monitor = m; ProtectionWorker.schedule(app, m.checkEveryHours.toLong()) }
 

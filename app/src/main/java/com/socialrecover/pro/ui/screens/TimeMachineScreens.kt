@@ -78,7 +78,8 @@ fun UnlockDialog(vm: AppViewModel) {
     val firstTime = !(pro.localConfigured || pro.cloudConfigured)
     var pw by remember { mutableStateOf("") }
     var pw2 by remember { mutableStateOf("") }
-    var keep by remember { mutableStateOf(pro.svc.autoBackup) }
+    // Copias automáticas activadas por defecto: el usuario puede desactivarlas.
+    var keep by remember { mutableStateOf(true) }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? -> if (uri != null) pro.setLocalFolder(uri) }
     // Comprobar si la bóveda ya existe implica leer el almacenamiento: fuera del hilo principal.
     val exists by androidx.compose.runtime.produceState<Boolean?>(null, pro.localConfigured, pro.cloudConfigured) {

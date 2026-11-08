@@ -200,6 +200,7 @@ fun SocialHubScreen(vm: AppViewModel, modifier: Modifier) {
         if (uri != null) pro.restore(picked.mapNotNull { pro.socialResults.getOrNull(it)?.let { h -> pro.mediaFor(h) } }, uri)
     }
     LaunchedEffect(pro.library) { if (pro.library != null) pro.searchSocial() }
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     LazyColumn(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -207,7 +208,29 @@ fun SocialHubScreen(vm: AppViewModel, modifier: Modifier) {
                 "Importa la copia oficial que cada red te deja descargar. Guardamos todos sus archivos cifrados y te dejamos buscar tus publicaciones, " +
                     "comentarios, «Me gusta» y fotos. No accedemos a tu cuenta ni podemos recuperar lo que la red haya borrado de sus servidores.")
         }
-        item { SectionTitle("1. Importar exportación") }
+        item { SectionTitle("1. Tus redes") }
+        item {
+            Text("Las redes no permiten que ninguna app saque tus datos sola. Toca «Pedir copia», confirma en la página oficial y, " +
+                "cuando te llegue el archivo, tócalo y elige «Abrir con SocialRecover Pro»: se importa automáticamente.",
+                style = MaterialTheme.typography.bodyMedium)
+        }
+        items(SocialNetwork.entries.filter { it != SocialNetwork.OTHER }) { n ->
+            val (req, imp) = pro.netTick.let { pro.svc.networkRecord(n) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(n.label, style = MaterialTheme.typography.titleMedium)
+                    Text(when {
+                        imp > 0 -> "Última copia importada: ${Format.date(imp)}"
+                        req > 0 -> "Pedida el ${Format.date(req)}: espera el aviso de ${n.label}"
+                        else -> "Sin copia todavía"
+                    }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                val link = officialExportUrl(n)
+                TextButton(onClick = { pro.requestExport(n); runCatching { uriHandler.openUri(link) } }) { Text(if (imp > 0) "Pedir otra" else "Pedir copia") }
+            }
+            HorizontalDivider()
+        }
+        item { SectionTitle("Importar un archivo ya descargado") }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SocialNetwork.entries.forEach { n ->
@@ -280,6 +303,7 @@ fun StatusScreen(vm: AppViewModel, modifier: Modifier) {
     val pro = vm.pro
     var cat by remember { mutableStateOf(Category.PHOTOS) }
     val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? -> if (uri != null) pro.addWatched(uri, cat) }
+    fun suggested(path: String): Uri = android.provider.DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:$path")
     val notifPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) { pro.refreshProtection(scan = pro.unlocked) }
     val rep = pro.protection
@@ -326,9 +350,22 @@ fun StatusScreen(vm: AppViewModel, modifier: Modifier) {
             }
         }
         item {
+            Text("Toca cada una y después «Usar esta carpeta» › «Permitir». Solo hace falta una vez.", style = MaterialTheme.typography.bodyMedium)
+        }
+        item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(Category.PHOTOS, Category.VIDEOS, Category.DOCUMENTS, Category.DOWNLOADS, Category.CUSTOM_FOLDERS).forEach { c ->
-                    AssistChip(onClick = { cat = c; addFolder.launch(null) }, label = { Text("Añadir: ${c.label}") }, leadingIcon = { Icon(Icons.Filled.Add, null) })
+                // Carpetas habituales: el selector se abre directamente en ellas.
+                listOf(
+                    Triple("Cámara", Category.PHOTOS, "DCIM"),
+                    Triple("Fotos e imágenes", Category.PHOTOS, "Pictures"),
+                    Triple("Documentos", Category.DOCUMENTS, "Documents"),
+                    Triple("Vídeos", Category.VIDEOS, "Movies"),
+                    Triple("WhatsApp", Category.CUSTOM_FOLDERS, "Android/media/com.whatsapp/WhatsApp/Media"),
+                    Triple("Otra carpeta", Category.CUSTOM_FOLDERS, ""),
+                ).forEach { (label, c, path) ->
+                    val added = pro.svc.watched.any { it.label.equals(path.substringAfterLast('/').ifEmpty { "-" }, true) }
+                    AssistChip(onClick = { cat = c; addFolder.launch(if (path.isEmpty()) null else suggested(path)) },
+                        label = { Text(if (added) "$label ✓" else "Añadir: $label") }, leadingIcon = { Icon(Icons.Filled.Add, null) })
                 }
             }
         }
@@ -474,4 +511,17 @@ fun SmartCloudScreen(vm: AppViewModel, modifier: Modifier) {
             confirmButton = { TextButton(onClick = { pro.deleteCloudAccount(); confirmDelete = false }) { Text("Eliminar definitivamente", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } })
     }
+}
+
+/** Página oficial donde cada red permite descargar una copia de TUS datos (los menús pueden cambiar). */
+fun officialExportUrl(n: SocialNetwork): String = when (n) {
+    SocialNetwork.INSTAGRAM, SocialNetwork.THREADS -> "https://accountscenter.instagram.com/info_and_permissions/dyi/"
+    SocialNetwork.FACEBOOK -> "https://accountscenter.facebook.com/info_and_permissions/dyi/"
+    SocialNetwork.TIKTOK -> "https://www.tiktok.com/setting/download-your-data"
+    SocialNetwork.YOUTUBE -> "https://takeout.google.com/"
+    SocialNetwork.X -> "https://x.com/settings/download_your_data"
+    SocialNetwork.REDDIT -> "https://www.reddit.com/settings/data-request"
+    SocialNetwork.PINTEREST -> "https://www.pinterest.com/settings/privacy"
+    SocialNetwork.SNAPCHAT -> "https://accounts.snapchat.com/"
+    SocialNetwork.OTHER -> "https://www.google.com/search?q=descargar+mis+datos"
 }
