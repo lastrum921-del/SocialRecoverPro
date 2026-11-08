@@ -1,0 +1,85 @@
+Ejecución real del componente de escritorio (Linux, JDK 21) el 08/11/2026 16:20. Datos sintéticos.
+
+$ srp init boveda
+Bóveda creada en cli/boveda
+
+$ srp backup boveda Fotos Documentos --nombre=Primera copia
+  0 B vacaciones_copia.jpg                              Copia completada: 4 archivos (5.8 MB). Sin cambios: 0. Guardado nuevo: 2.9 MB. Deduplicado: 2.9 MB. Ahorro por compresión: 82.8 KB.
+Duplicados detectados: 1 (p. ej. Fotos/vacaciones.jpg = Fotos/vacaciones_copia.jpg)
+
+$ srp status boveda Fotos Documentos
+Estado: Protegido
+  [INFO] Hay 1 archivo(s) nuevos o modificados en «Documentos» desde la última copia.  → Hacer copia ahora
+  [INFO] Tus copias aún no se han verificado nunca. Comprobarlas confirma que se pueden restaurar.  → Comprobar copias
+
+$ srp backup boveda Fotos Documentos --nombre=Segunda copia
+  0 B vacaciones_copia.jpg                              Copia completada: 4 archivos (5.8 MB). Sin cambios: 3. Guardado nuevo: 46 B. Deduplicado: 5.8 MB. Ahorro por compresión: 0 B.
+Duplicados detectados: 1 (p. ej. Fotos/vacaciones.jpg = Fotos/vacaciones_copia.jpg)
+
+$ srp list boveda
+08/11/2026 16:20  Primera copia                  vm                 4 archivos  snap-20261108T162024-08deda
+08/11/2026 16:20  Segunda copia                  vm                 4 archivos  snap-20261108T162025-1b26ca
+
+$ srp calendar boveda 2026-11
+   NOVIEMBRE 2026
+ L  M  X  J  V  S  D
+                   1 
+ 2  3  4  5  6  7  8*
+ 9 10 11 12 13 14 15 
+16 17 18 19 20 21 22 
+23 24 25 26 27 28 29 
+30 
+(*) días con copias
+
+$ srp files boveda 2026-11-08
+✔  Documentos/acta.txt  (83 KB, vm)
+✔  Documentos/Facturas/luz_septiembre.txt  (46 B, vm)
+✔  Fotos/vacaciones.jpg  (2.9 MB, vm)
+✔  Fotos/vacaciones_copia.jpg  (2.9 MB, vm)
+
+$ srp find boveda busco la factura de la luz en mi ordenador
+Entendido: Tipo: documento · Dispositivo: ordenador · Palabras: luz
+[Disponible] 08/11/2026 16:21  luz_septiembre.txt  — Documentos/Facturas · vm · Local · copia del 08/11/2026 16:20
+[Disponible] 08/11/2026 16:20  luz_septiembre.txt  — Documentos/Facturas · vm · Local · copia del 08/11/2026 16:20
+
+$ srp find boveda un vídeo de TikTok de septiembre
+Entendido: Tipo: vídeo · Red: TikTok · Fecha: septiembre de 2026
+• No has importado ninguna exportación de TikTok. Puedes pedir tu copia oficial desde la app de TikTok y traerla aquí desde «Mis redes sociales».
+• La exportación oficial de TikTok incluye los enlaces de tus vídeos, pero no los archivos. Si el vídeo sigue publicado, puedes descargarlo desde la propia app.
+• Tu primera copia es del 2026-11-08. Lo que se perdió antes de esa fecha no llegó a protegerse.
+• Revisa la papelera o la sección «Eliminado recientemente» del dispositivo o de la aplicación: muchas la conservan durante un tiempo limitado.
+• Prueba con menos palabras o sin fecha, o busca en la Máquina del tiempo por día.
+
+$ srp status boveda Fotos Documentos
+Estado: Protegido
+  [INFO] Tus copias aún no se han verificado nunca. Comprobarlas confirma que se pueden restaurar.  → Comprobar copias
+
+$ srp check boveda --completa
+Todo correcto: 2 copias verificadas.
+
+$ srp restore boveda snap-20261108T162024-08deda restaurado
+Restaurados y verificados: 4 · Con problemas: 0
+
+$ cmp Fotos/vacaciones.jpg restaurado/Fotos/vacaciones.jpg
+idénticos
+
+$ srp list boveda   (con contraseña incorrecta)
+La contraseña no es correcta. Revisa mayúsculas, minúsculas y espacios e inténtalo de nuevo.
+
+$ srp retention boveda --ultimas=1
+Política: Las 1 últimas copias. Se conservarían 1 y se eliminarían 1 copias.
+Nada se ha borrado. Añade --aplicar para confirmar.
+
+$ srp retention boveda --ultimas=1 --aplicar
+Política: Las 1 últimas copias. Se conservarían 1 y se eliminarían 1 copias.
+Eliminadas 1 copias; liberado 66 B.
+
+$ srp check boveda --completa
+Todo correcto: 1 copias verificadas.
+
+$ srp schedule boveda Fotos Documentos --hora=21:30
+Tarea programada diaria a las 21:30. Ejecuta en Windows (la contraseña se toma de la variable SRP_PASSWORD del usuario,
+o mejor del Administrador de credenciales; ver docs/WINDOWS.md):
+
+schtasks /Create /F /SC DAILY /ST 21:30 /TN "SocialRecover Pro" /TR "javaw -jar \"srp.jar\" backup \"boveda\" \"Fotos\" \"Documentos\""
+

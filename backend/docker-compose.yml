@@ -1,0 +1,33 @@
+# Entorno completo: API + PostgreSQL + MinIO (almacenamiento compatible con S3).
+# En producción, poner delante un proxy con TLS (Caddy, Traefik o el balanceador del proveedor).
+services:
+  api:
+    build: .
+    environment:
+      SRP_DATABASE_URL: postgresql+psycopg://srp:${POSTGRES_PASSWORD:-cambia-esto}@db:5432/srp
+      SRP_STORAGE: s3
+      SRP_S3_ENDPOINT: http://minio:9000
+      SRP_S3_BUCKET: socialrecover
+      AWS_ACCESS_KEY_ID: ${MINIO_USER:-srpminio}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_PASSWORD:-cambia-esto-tambien}
+      SRP_DEFAULT_QUOTA_BYTES: "5368709120"   # 5 GB
+      SRP_ADMIN_TOKEN: ${SRP_ADMIN_TOKEN:?define SRP_ADMIN_TOKEN}
+    ports: ["8080:8080"]
+    depends_on: [db, minio]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: srp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambia-esto}
+      POSTGRES_DB: srp
+    volumes: [pgdata:/var/lib/postgresql/data]
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-srpminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-cambia-esto-tambien}
+    volumes: [miniodata:/data]
+volumes:
+  pgdata: {}
+  miniodata: {}

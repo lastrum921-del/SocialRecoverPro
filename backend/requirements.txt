@@ -1,0 +1,5 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy>=2.0
+psycopg[binary]>=3.1   # PostgreSQL en producción
+boto3>=1.34            # almacenamiento compatible con S3

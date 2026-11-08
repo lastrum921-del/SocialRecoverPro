@@ -1,0 +1,76 @@
+Ejecución real: 2026-11-08 16:30 UTC · JDK 21 · kotlinc 2.4.21 (-language-version 2.1) · servidor FastAPI real para CloudTest
+Comando: SRP_PYTHON=… SRP_BACKEND_DIR=backend scripts/run-core-tests.sh -Dsrp.bigTestMb=1024
+
+▶ BackupRestoreTest
+  ✔ ciphertextDoesNotContainPlaintextOrNames (268 ms)
+  ✔ corruptedDataIsDetected (87 ms)
+  ✔ corruptedManifestOrInfoIsDetected (36 ms)
+  ✔ deleteBackup (9 ms)
+  ✔ hostileNamesStayInsideDestination (14 ms)
+  ✔ interruptedBackupLeavesNoValidLookingCopy (21 ms)
+    (vídeo de 1024 MiB verificado)
+  ✔ largeVideoRoundTrip (21433 ms)
+  ✔ noSpaceIsReportedClearly (12 ms)
+  ✔ permissionDeniedOnDestination (4 ms)
+    (PBKDF2 600 000 iteraciones: copia+apertura en 317 ms en este equipo)
+  ✔ productionKdfParametersWork (318 ms)
+  ✔ providerWithoutRenameStillProducesValidBackup (5 ms)
+  ✔ restoreNeverOverwritesExistingFiles (8 ms)
+  ✔ selectiveRestoreAndFolders (6 ms)
+  ✔ smallFilesRoundTrip (19 ms)
+  ✔ specialFileNames (16 ms)
+  ✔ truncatedDataIsDetected (7 ms)
+  ✔ unreadableSourceIsSkippedAndReported (10 ms)
+  ✔ verifyOnlyMode (4 ms)
+  ✔ wrongPasswordIsRejected (4 ms)
+▶ CloudTest
+  ✔ cloudBackupRestoreFromAnotherDeviceAndZeroKnowledge (5095 ms)
+  ✔ connectionLossDuringUploadThenResume (8512 ms)
+  ✔ quotaAndHybridModeKeepLocalCopyWhenCloudFails (3479 ms)
+▶ ExportAnalyzerTest
+  ✔ detectsFacebook (6 ms)
+  ✔ detectsInstagram (1 ms)
+  ✔ detectsTikTok (0 ms)
+  ✔ unknownZipAndInvalidFile (1 ms)
+▶ RecoveryAndStatusTest
+  ✔ changeScannerFindsPendingFiles (6 ms)
+  ✔ failedAndInterruptedBackupsAreDetected (3 ms)
+  ✔ guidedRecoveryFindsAndClassifiesAvailability (59 ms)
+  ✔ naturalLanguageQueriesInSpanish (8 ms)
+  ✔ protectionAlertsAreClearAndCorrect (6 ms)
+▶ SocialImportTest
+  ✔ brokenOrUnknownFormatsStillSaveEverything (19 ms)
+  ✔ facebookTikTokYoutubeXRedditSnapchat (54 ms)
+  ✔ instagramExportIsIndexedAndMediaIsRecoverable (21 ms)
+  ✔ multiPartExportLinksMediaAcrossParts (8 ms)
+  ✔ searchByWordDateNetworkAndTypeAndExport (27 ms)
+▶ StreamCipherTest
+  ✔ noncesAreUniquePerFile (0 ms)
+  ✔ reorderedChunksAreDetected (1 ms)
+  ✔ roundTripAllBoundaries (4 ms)
+  ✔ truncationAtChunkBoundaryIsDetected (1 ms)
+  ✔ wrongKeyAndWrongMagic (1 ms)
+▶ VaultTest
+  ✔ damagedAndMissingBlobsAreDetectedAndNeverOfferedAsRecoverable (15 ms)
+  ✔ duplicatesAndCompression (31 ms)
+  ✔ incrementalBackupStoresOnlyChanges (237 ms)
+  ✔ interruptedBackupResumesReusingBlocks (525 ms)
+  ✔ migrationFromVersion1KeepsDateAndIntegrity (57 ms)
+  ✔ noSpaceDuringBackup (130 ms)
+  ✔ retentionNeverDeletesWithoutPolicyAndPrunesSafely (60 ms)
+  ✔ timeMachineCalendarAndFilters (26 ms)
+  ✔ versionHistoryAndComparison (16 ms)
+  ✔ wrongPasswordAndPasswordChange (12 ms)
+
+Resultado: 51 correctas, 0 fallidas (40.779 s)
+
+Backend (pytest):
+tests/test_api.py::test_register_login_and_wrong_password PASSED         [ 12%]
+tests/test_api.py::test_bruteforce_is_throttled PASSED                   [ 25%]
+tests/test_api.py::test_object_roundtrip_integrity_and_listing PASSED    [ 37%]
+tests/test_api.py::test_quota_is_enforced PASSED                         [ 50%]
+tests/test_api.py::test_users_are_isolated_and_admin_cannot_read_content PASSED [ 62%]
+tests/test_api.py::test_mfa_totp PASSED                                  [ 75%]
+tests/test_api.py::test_sessions_revocation_and_account_deletion PASSED  [ 87%]
+tests/test_api.py::test_s3_storage_backend PASSED                        [100%]
+========================= 8 passed, 1 warning in 5.23s =========================

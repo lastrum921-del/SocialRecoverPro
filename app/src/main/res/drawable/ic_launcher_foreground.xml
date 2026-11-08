@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Escudo turquesa con flecha circular de recuperación (zona segura 66dp centrada en 108dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#14B8A6"
+        android:pathData="M54,26 L76,34 L76,52 C76,66 66.5,77.5 54,82 C41.5,77.5 32,66 32,52 L32,34 Z" />
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:pathData="M63,47 A10,10 0 1,0 64,56" />
+    <path android:fillColor="#FFFFFF" android:pathData="M58,42 L67,41 L65,50 Z" />
+</vector>

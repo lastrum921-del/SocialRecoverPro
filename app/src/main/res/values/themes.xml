@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SocialRecoverPro" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/srp_background</item>
+    </style>
+    <color name="srp_background">#F6F8FB</color>
+    <color name="srp_navy">#0B1F3A</color>
+    <color name="srp_turquoise">#14B8A6</color>
+</resources>

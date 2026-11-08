@@ -1,0 +1,49 @@
+# Compila la app en los servidores de GitHub y publica el APK en "Releases" para descargarlo desde el móvil.
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Pruebas del motor
+        run: bash ./gradlew :core:test --no-daemon
+
+      - name: Compilar APK de prueba
+        run: bash ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SocialRecoverPro-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar en Releases (descarga fácil desde el móvil)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SocialRecoverPro.apk
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" SocialRecoverPro.apk \
+            --title "SocialRecover Pro (compilación ${{ github.run_number }})" \
+            --notes "APK de prueba. En el móvil: descarga SocialRecoverPro.apk, ábrelo y permite instalar apps desconocidas." \
+            --prerelease
