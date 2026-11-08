@@ -6,3 +6,6 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# La clave de PRUEBAS sí se incluye (ver app/build.gradle.kts)
+!app/signing/srp-test.keystore
