@@ -82,6 +82,14 @@ class VaultService(private val context: Context) {
 
     val cloudToken: String? get() = keys.get(DeviceKeys.CLOUD_TOKEN)?.toString(Charsets.UTF_8)
 
+    /** Nube elegida: Google Drive del usuario (15 GB gratis) o el servidor propio de SocialRecover Pro. */
+    var driveEnabled: Boolean
+        get() = sp.getBoolean("drive_enabled", false)
+        set(v) { sp.edit().putBoolean("drive_enabled", v).apply() }
+
+    val cloudConfigured: Boolean get() = driveEnabled || cloudToken != null
+    val cloudName: String get() = if (driveEnabled) "Google Drive" else "Nube SocialRecover Pro"
+
     var policy: HybridPolicy
         get() = sp.getString("hybrid_policy", null)?.let { s ->
             val o = JSONObject(s)
@@ -189,7 +197,12 @@ class VaultService(private val context: Context) {
     // ------------------------------------------------------------------ bóvedas
 
     fun localBackend(): SafRepoBackend? = localTree?.let { SafRepoBackend(context, it, "Bóveda local") }
-    fun cloudBackend(): HttpRepoBackend? = cloudToken?.let { HttpRepoBackend(cloudUrl, it, "Nube SocialRecover Pro") }
+    fun cloudBackend(): com.socialrecover.core.vault.RepoBackend? = when {
+        driveEnabled -> com.socialrecover.core.cloud.DriveRepoBackend(GoogleDriveAuth.Tokens(context), "Google Drive")
+        else -> cloudToken?.let { HttpRepoBackend(cloudUrl, it, "Nube SocialRecover Pro") }
+    }
+
+    fun disconnectDrive() { driveEnabled = false; keys.remove(DeviceKeys.VAULT_CLOUD); cloud?.close(); cloud = null; library = null }
 
     fun localExists() = runCatching { localBackend()?.let { Vault.exists(it) } }.getOrNull() == true
     fun cloudExists() = runCatching { cloudBackend()?.let { Vault.exists(it) } }.getOrNull() == true
@@ -321,9 +334,9 @@ class VaultService(private val context: Context) {
         val stat = StatFs(Environment.getDataDirectory().path)
         val storages = ArrayList<StorageStatus>()
         storages += StorageStatus(StorageKind.LOCAL, "este teléfono", stat.availableBytes, stat.totalBytes, null, null, null, null)
-        if (cloudToken != null) {
+        if (cloudConfigured) {
             val u = cloudUsage()
-            storages += StorageStatus(StorageKind.CLOUD, "la nube", null, null, u?.usedBytes, u?.quotaBytes, lastSyncAt.takeIf { it > 0 }, lastSyncError)
+            storages += StorageStatus(StorageKind.CLOUD, cloudName, null, null, u?.usedBytes, u?.quotaBytes, lastSyncAt.takeIf { it > 0 }, lastSyncError)
         }
         val interrupted = listOfNotNull(local, cloud).sumOf { runCatching { it.staleLocks().size }.getOrDefault(0) }
         val health = VaultHealth(lastCheckAt.takeIf { it > 0 }, if (lastCheckAt > 0) lastCheckOk else null, interrupted, lib?.damaged?.size ?: 0)

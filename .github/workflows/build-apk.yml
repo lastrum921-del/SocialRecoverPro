@@ -42,13 +42,54 @@ jobs:
           name: SocialRecoverPro-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publicar en Releases (descarga fácil desde el móvil)
+      - name: Compilar programa de PC (srp.jar)
+        run: bash ./gradlew :desktop:fatJar --no-daemon
+
+      - name: Guardar srp.jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: srp-jar
+          path: desktop/build/libs/srp.jar
+
+  windows:
+    # Programa para Windows con Java incluido (no hace falta instalar nada).
+    needs: apk
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/download-artifact@v4
+        with:
+          name: srp-jar
+          path: entrada
+      - name: Empaquetar SocialRecoverPro para Windows
+        shell: pwsh
+        run: |
+          jpackage --type app-image --name SocialRecoverPro --input entrada --main-jar srp.jar `
+            --main-class com.socialrecover.desktop.MainKt --win-console --app-version 1.1.0 --vendor "SocialRecover Pro"
+          Compress-Archive -Path SocialRecoverPro -DestinationPath SocialRecoverPro-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: SocialRecoverPro-Windows.zip
+
+  publicar:
+    needs: [apk, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Publicar en Releases (descarga fácil desde el móvil y el PC)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk SocialRecoverPro.apk
+          cp dist/SocialRecoverPro-apk/app-debug.apk SocialRecoverPro.apk
           TAG="build-${{ github.run_number }}"
-          gh release create "$TAG" SocialRecoverPro.apk \
+          gh release create "$TAG" SocialRecoverPro.apk dist/windows/SocialRecoverPro-Windows.zip dist/srp-jar/srp.jar \
+            --repo "${{ github.repository }}" \
             --title "SocialRecover Pro (compilación ${{ github.run_number }})" \
-            --notes "APK de prueba. En el móvil: descarga SocialRecoverPro.apk, ábrelo y permite instalar apps desconocidas." \
+            --notes "Móvil: descarga SocialRecoverPro.apk e instálalo. PC con Windows: descarga SocialRecoverPro-Windows.zip, descomprímelo y usa SocialRecoverPro.exe (ver docs/WINDOWS.md)." \
             --prerelease

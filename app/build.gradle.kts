@@ -25,6 +25,14 @@ android {
     }
 
     signingConfigs {
+        // Clave FIJA de pruebas (incluida en el repositorio): permite actualizar el APK de prueba sin desinstalar
+        // y registrar su huella SHA-1 en Google Cloud para Google Drive. NO usar para publicar en Google Play.
+        create("pruebas") {
+            storeFile = file("signing/srp-test.keystore")
+            storePassword = "srp-test-1234"
+            keyAlias = "srptest"
+            keyPassword = "srp-test-1234"
+        }
         if (keystoreProps.isNotEmpty()) {
             create("release") {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
@@ -36,6 +44,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("pruebas")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -66,6 +77,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.play.services.auth)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

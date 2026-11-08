@@ -65,7 +65,19 @@ class ProState(private val app: Application, private val ops: Ops) {
     var usage by mutableStateOf<Usage?>(null); private set
     var lastRestore by mutableStateOf<RestoreReport?>(null)
     var localConfigured by mutableStateOf(svc.localTree != null); private set
-    var cloudConfigured by mutableStateOf(svc.cloudToken != null); private set
+    var cloudConfigured by mutableStateOf(svc.cloudConfigured); private set
+    var driveEnabled by mutableStateOf(svc.driveEnabled); private set
+
+    /** Google concedió acceso a Drive: la nube pasa a ser el Drive del usuario. */
+    fun connectDrive() {
+        svc.driveEnabled = true; driveEnabled = true; cloudConfigured = true
+        svc.lock(); unlocked = false; showUnlock = true
+        ops.msg("Google Drive conectado", "Abre tu bóveda con su contraseña para empezar. En Drive se creará la carpeta «SocialRecoverPro-Boveda» con tus copias ya cifradas: ni Google puede leerlas.")
+    }
+
+    fun disconnectDrive() { svc.disconnectDrive(); driveEnabled = false; cloudConfigured = svc.cloudConfigured; usage = null; refreshLibrary() }
+
+    fun driveError(text: String) = ops.msg("No se pudo conectar Google Drive", text, true)
 
     // ---------------------------------------------------------------- bóveda
 

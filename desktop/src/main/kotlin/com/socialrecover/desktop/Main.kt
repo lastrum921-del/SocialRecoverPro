@@ -61,7 +61,8 @@ object Cli {
         ?: error("Define SRP_PASSWORD o ejecuta en una consola interactiva")
 
     private fun backend(loc: String): RepoBackend =
-        if (loc.startsWith("http://") || loc.startsWith("https://"))
+        if (loc == "drive") com.socialrecover.core.cloud.DriveRepoBackend(GoogleDesktopAuth.tokens(), "Google Drive")
+        else if (loc.startsWith("http://") || loc.startsWith("https://"))
             HttpRepoBackend(loc, System.getenv("SRP_CLOUD_TOKEN") ?: error("Define SRP_CLOUD_TOKEN para usar la nube"))
         else LocalRepoBackend(File(loc), File(loc).absolutePath)
 
@@ -84,6 +85,10 @@ object Cli {
         val pos = args.filter { !it.startsWith("--") }
         opts["iteraciones"]?.let { params = CryptoParams(it.toInt()) }
         when (pos[0]) {
+            "drive-login" -> GoogleDesktopAuth.login(
+                opts["client-id"] ?: System.getenv("SRP_GOOGLE_CLIENT_ID") ?: error("Falta --client-id"),
+                opts["client-secret"] ?: System.getenv("SRP_GOOGLE_CLIENT_SECRET") ?: error("Falta --client-secret"))
+            "drive-logout" -> { GoogleDesktopAuth.logout(); println("Google Drive desconectado de este ordenador.") }
             "init" -> {
                 val pw = password("Nueva contraseña (mín. 8): ")
                 require(pw.size >= 8) { "La contraseña debe tener al menos 8 caracteres" }
@@ -208,7 +213,8 @@ object Cli {
     private fun help() = println("""
         SocialRecover Pro · ordenador (motor compartido con Android)
 
-          init <bóveda>                              Crear bóveda (carpeta, disco externo o URL de la nube)
+          drive-login --client-id=… --client-secret=…  Conectar tu Google Drive (una sola vez)
+          init <bóveda>                              Crear bóveda: carpeta, disco externo, «drive» o URL del servidor
           backup <bóveda> <carpeta>... [--nombre=X]  Copia incremental cifrada de carpetas autorizadas
           list <bóveda>                              Copias disponibles
           calendar <bóveda> [aaaa-mm]                Máquina del tiempo: días con copias
@@ -222,7 +228,8 @@ object Cli {
           migrate <carpeta-v1> <bóveda>              Migrar copias de la versión 1
           schedule <bóveda> <carpeta>... [--hora=21:00] [--crear]  Copia diaria (Programador de tareas)
 
-        Contraseña: se pide por consola o desde SRP_PASSWORD. Nube: URL + SRP_CLOUD_TOKEN.
+        <bóveda> = carpeta, «drive» (tu Google Drive) o URL del servidor propio (+ SRP_CLOUD_TOKEN).
+        Contraseña: se pide por consola o desde SRP_PASSWORD.
     """.trimIndent())
 }
 

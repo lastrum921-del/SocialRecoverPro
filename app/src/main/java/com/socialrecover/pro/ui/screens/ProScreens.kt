@@ -417,6 +417,13 @@ fun SmartCloudScreen(vm: AppViewModel, modifier: Modifier) {
     var retention by remember { mutableStateOf(pro.retention) }
     var confirmPrune by remember { mutableStateOf<Int?>(null) }
     val pickLocal = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? -> if (uri != null) { pro.setLocalFolder(uri); pro.showUnlock = true } }
+    val driveConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
+        when (val r = com.socialrecover.pro.data.GoogleDriveAuth.finish(context, res.data)) {
+            is com.socialrecover.pro.data.GoogleDriveAuth.Start.Granted -> pro.connectDrive()
+            is com.socialrecover.pro.data.GoogleDriveAuth.Start.Failed -> pro.driveError(r.message)
+            else -> {}
+        }
+    }
     LaunchedEffect(pro.cloudConfigured) { if (pro.cloudConfigured) pro.refreshUsage() }
 
     LazyColumn(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -433,7 +440,35 @@ fun SmartCloudScreen(vm: AppViewModel, modifier: Modifier) {
         item {
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Cloud, null); Spacer(Modifier.width(8.dp)); Text("Nube SocialRecover Pro", style = MaterialTheme.typography.titleMedium) }
+                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Cloud, null); Spacer(Modifier.width(8.dp)); Text("Google Drive (15 GB gratis)", style = MaterialTheme.typography.titleMedium) }
+                    if (pro.driveEnabled) {
+                        val u = pro.usage
+                        if (u != null && u.quotaBytes != null && u.quotaBytes!! > 0) {
+                            LinearProgressIndicator(progress = { (u.usedBytes.toFloat() / u.quotaBytes!!).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                            Text("${Format.size(context, u.usedBytes)} de ${Format.size(context, u.quotaBytes!!)} usados en tu Drive (incluye Gmail y Google Fotos)")
+                        }
+                        Text("Tus copias se guardan cifradas en la carpeta «SocialRecoverPro-Boveda». La app solo ve esa carpeta.", style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { pro.disconnectDrive() }) { Text("Desconectar Google Drive") }
+                    } else {
+                        Text("Usa tu propia cuenta de Google. La app solo tendrá acceso a su carpeta, no al resto de tu Drive.", style = MaterialTheme.typography.bodyMedium)
+                        BigButton("Conectar Google Drive", Icons.Filled.Cloud) {
+                            com.socialrecover.pro.data.GoogleDriveAuth.start(context) { r ->
+                                when (r) {
+                                    is com.socialrecover.pro.data.GoogleDriveAuth.Start.Granted -> pro.connectDrive()
+                                    is com.socialrecover.pro.data.GoogleDriveAuth.Start.NeedsConsent ->
+                                        driveConsent.launch(androidx.activity.result.IntentSenderRequest.Builder(r.pendingIntent.intentSender).build())
+                                    is com.socialrecover.pro.data.GoogleDriveAuth.Start.Failed -> pro.driveError(r.message)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!pro.driveEnabled) item {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Filled.Cloud, null); Spacer(Modifier.width(8.dp)); Text("Servidor propio (avanzado)", style = MaterialTheme.typography.titleMedium) }
                     if (pro.cloudConfigured) {
                         val u = pro.usage
                         Text("Cuenta: ${pro.svc.cloudEmail ?: ""}")
@@ -441,7 +476,7 @@ fun SmartCloudScreen(vm: AppViewModel, modifier: Modifier) {
                             LinearProgressIndicator(progress = { (u.usedBytes.toFloat() / u.quotaBytes!!).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                             Text("${Format.size(context, u.usedBytes)} de ${Format.size(context, u.quotaBytes!!)} usados")
                         }
-                        Text("Plan anual: 29,99 € con 5 GB de nube. Puedes ampliar el espacio con planes opcionales.", style = MaterialTheme.typography.bodyMedium)
+                        Text("Servidor propio de SocialRecover Pro (plan anual con 5 GB).", style = MaterialTheme.typography.bodyMedium)
                         Row {
                             TextButton(onClick = { pro.cloudSignOut() }) { Text("Cerrar sesión") }
                             TextButton(onClick = { confirmDelete = true }) { Text("Eliminar cuenta y datos", color = MaterialTheme.colorScheme.error) }
