@@ -2,7 +2,7 @@ name: Compilar APK
 
 on:
   push:
-    branches: [main]
+    branches: [limpiador-movil]
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,8 @@ jobs:
       - name: Publicar descarga
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.run_number }}
+          tag_name: limpiador-v${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Limpiador Móvil v${{ github.run_number }}
           body: "Descarga LimpiadorMovil.apk en tu móvil Android e instálalo."
           files: LimpiadorMovil.apk
